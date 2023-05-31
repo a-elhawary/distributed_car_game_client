@@ -3,6 +3,7 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import QThread, pyqtSignal
 import time
 import cv2
+from networking import ClientMiddleware
 
 
 class Message(QWidget):
@@ -25,8 +26,9 @@ class Message(QWidget):
 
 
 class LiveChat(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self,net, parent=None):
         QWidget.__init__(self, parent)
+        self.net = net
         layout = QVBoxLayout()
         messages = QWidget()
         self.messagesLayout = QVBoxLayout()
@@ -47,16 +49,16 @@ class LiveChat(QWidget):
         layout.addWidget(bottomBar)
         self.setLayout(layout)
 
-        myWorker = NetworkWoker(self)
+        myWorker = NetworkWoker(self.net, self)
         myWorker.msg_signal.connect(self.onDataRecieved)
         myWorker.start()
 
     def sendMessage(self, event):
         msg = self.chatText.text()
-        self.addMessage(msg, True)
+        self.net.sendChatMessage(msg)
 
     def onDataRecieved(self, indx):
-        pass
+        self.addMessage(self.net.getOneMessage(), False)
 
     def addMessage(self, data, isMine):
         self.messagesLayout.addWidget(Message(data, isMine))
@@ -65,18 +67,24 @@ class LiveChat(QWidget):
 class NetworkWoker(QThread):
     msg_signal = pyqtSignal(int)
 
-    def __init__(self,  parent=None):
+    def __init__(self, net, parent=None):
         QThread.__init__(self, parent)
-        self.currSize = 0
+        self.net = net
+        self.current = 0
 
     def run(self):
         while True:
-            pass
+            myLen = len(self.net.getMessages())
+            if myLen != self.current:
+                self.current = myLen
+                if myLen > 0:
+                    self.msg_signal.emit(0)
 
 
 class ActualGame(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, net, parent=None):
         QWidget.__init__(self, parent)
+        self.net = net
         layout = QVBoxLayout()
         self.im = cv2.imread('assets/background.png')
         image = QImage(self.im.data, self.im.shape[1], self.im.shape[0], QImage.Format_RGB888).rgbSwapped()
@@ -87,6 +95,16 @@ class ActualGame(QWidget):
         gameLoop.msg_signal.connect(self.scrollImage)
         gameLoop.start()
         self.setLayout(layout)
+
+
+    def keyPressEvent(self, e):
+        if e.event_type == "down":
+            if e.name == "w":
+                self.net.move("UP")
+            if e.name == "a":
+                self.net.move("LEFT")
+            if e.name == "d":
+                self.net.move("RIGHT")
 
     def scrollImage(self):
         offset = 40
@@ -117,7 +135,12 @@ class GameLoop(QThread):
 class GameWindow(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
+
+        # initialize server
+        self.net = ClientMiddleware()
+        self.net.start()
+
         layout = QHBoxLayout()
-        layout.addWidget(ActualGame())
-        layout.addWidget(LiveChat())
+        layout.addWidget(ActualGame(self.net))
+        layout.addWidget(LiveChat(self.net))
         self.setLayout(layout)

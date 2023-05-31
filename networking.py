@@ -1,93 +1,98 @@
-import socket
-import threading
-import random
-from datetime import datetime
+import zmq
+from threading import Thread
+import pickle
 
-# Game works with a simple protocol on top of UDP
-# data packets -> packets that carry game info e.g. position/chat message
-# Anyone packets -> broadcast for finding people on LAN
-# Handshake packets -> reply showing computers in LAN
+class ClientMiddleware:
+    # Client info
+    game_id = 1
+    player_id = "hawary"
 
-isRunning = True
+    # server addresses
+    SERVER_IP = "127.0.0.1"
+    SUBSCRIBE_PORT = "7878"
+    PUSH_PORT = "8787"
+    REQ_PORT = "12345"
 
-reciever_port = 8989
-send_to = []
+    # my ports
+    sub_sock = None
+    push_sock = None
+    req_sock = None
 
-send_buffer = []
-recieve_buffer = []
+    # state data
+    current_state = {}
+    state_modified = False
 
-my_id = 0
+    # recieved chat buffer
+    recv_msgs = []
 
+    def __init__(self):
+        context = zmq.Context()
+        self.sub_sock = context.socket(zmq.SUB)
+        self.sub_sock.connect("tcp://"+self.SERVER_IP+":"+self.SUBSCRIBE_PORT)
+        self.push_sock = context.socket(zmq.PUSH)
+        self.push_sock.connect("tcp://"+self.SERVER_IP+":"+self.PUSH_PORT)
+        self.req_sock = context.socket(zmq.REQ)
+        self.sub_sock.setsockopt(zmq.SUBSCRIBE, str(self.game_id).encode())
+    
+    def start(self):
+        print("starting server...")
+        t1 = Thread(target=self.getStateUpdate)
+        t2 = Thread(target=self.getNewState)
+        t1.start()
+        t2.start()
+    
+    def getNewState(self):
+        self.req_sock.connect("tcp://"+self.SERVER_IP+":"+self.REQ_PORT)
+        msg = str(self.game_id) + " GS"
+        self.req_sock.send(msg.encode())
+        current_state = pickle.loads(self.req_sock.recv())
+        print("initialized")
+        print(current_state)
+        state_modified = True
+        self.req_sock.close()
+    
+    def move(self, direction):
+        self.push_sock.send_string(str(self.game_id) + " " + self.player_id + " G " + direction)
+    
+    def sendChatMessage(self, msg):
+        self.push_sock.send_string(str(self.game_id) + " " + self.player_id + " C " + msg)
+    
+    def getStateUpdate(self):
+        print("listening for subscribe socket")
+        while True:
+            data = self.sub_sock.recv().decode().split()
+            game_id = data[0]
+            player_id = data[1]
+            msg_type = data[2]
+            data = data[3:]
+            print('recieved something')
+            if msg_type == "C":
+                myStr = ""
+                for word in data:
+                    myStr += word
+                    myStr += " "
+                myStr = myStr[:len(myStr)-1]
+                print("Chat sent by " + player_id)
+                print(myStr)
+                self.recv_msgs.append(myStr)
+            elif msg_type == "G":
+                for player in current_state["Players_Info"]:
+                    if player["ID"] == player_id:
+                        player["Position_X"] = int(data[0])
+                        player["Position_Y"] = int(data[1])
+                        print("new position")
+                        print(current_state)
+                        state_modified = True
 
-def send(data):
-    send_buffer.append("DATA " + data)
+    def getMessages(self):
+        return self.recv_msgs
 
+    def getOneMessage(self):
+        return self.recv_msgs.pop(0)
 
-def sender():
-    global send_buffer
-    global isRunning
-    global my_id
-    send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    send_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    random.seed()
-    my_id = str(random.randint(1,1000))
-    print(my_id)
-    send_buffer.append("ANYONE " + my_id)
-    while isRunning:
-        if len(send_buffer) > 0:
-            msg = send_buffer.pop(0)
-            if msg.split(" ")[0] == "ANYONE":
-                send_sock.sendto(msg.encode(), ("255.255.255.255", reciever_port))
-            elif len(send_to) > 0:
-                for node in send_to:
-                    send_sock.sendto(msg.encode(), (node, reciever_port))
+    def isStateChanged(self):
+        return self.state_modified
 
-
-def listener():
-    global isRunning
-    global recieve_buffer
-    global my_id
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind(("", reciever_port))
-    while isRunning:
-        data, addr = s.recvfrom(1024)
-        ip = addr[0]
-        msg = data.decode("utf8")
-        header = msg.split(" ")[0]
-        args = msg[len(header)+1:]
-        print(data, addr)
-        if header == "DATA":
-            recieve_buffer.append(args)
-        elif header == "HANDSHAKE" and ip not in send_to:
-            print(ip, " Added")
-            send_to.append(ip)
-        elif header == "ANYONE" and args != my_id:
-            if ip not in send_to:
-                print(ip, " Added")
-                send_to.append(ip)
-            sendSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sendSock.sendto(b'HANDSHAKE ', (ip, reciever_port))
-            sendSock.close()
-
-
-def start_threads():
-    t1 = threading.Thread(target=sender)
-    t2 = threading.Thread(target=listener)
-
-    t1.start()
-    t2.start()
-
-
-def stop_threads():
-    isRunning = False
-
-
-def main():
-    start_threads()
-    while True:
-        data = input("enter msg: ").encode()
-        send_buffer.append(data)
-
-
-if __name__ == "__main__":
-    main()
+    def getState(self):
+        self.state_modified = False
+        return self.current_state
