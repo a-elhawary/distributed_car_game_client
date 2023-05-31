@@ -61,7 +61,7 @@ class LiveChat(QWidget):
         self.addMessage(self.net.getOneMessage(), False)
 
     def addMessage(self, data, isMine):
-        self.messagesLayout.addWidget(Message(data, isMine))
+        self.messagesLayout.addWidget(Message(data[1], self.net.isMine(data[0])))
 
 
 class NetworkWoker(QThread):

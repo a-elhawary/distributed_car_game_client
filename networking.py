@@ -74,7 +74,7 @@ class ClientMiddleware:
                 myStr = myStr[:len(myStr)-1]
                 print("Chat sent by " + player_id)
                 print(myStr)
-                self.recv_msgs.append(myStr)
+                self.recv_msgs.append((player_id, myStr))
             elif msg_type == "G":
                 for player in current_state["Players_Info"]:
                     if player["ID"] == player_id:
@@ -83,6 +83,9 @@ class ClientMiddleware:
                         print("new position")
                         print(current_state)
                         state_modified = True
+
+    def isMine(self, player_id):
+        return self.player_id == player_id
 
     def getMessages(self):
         return self.recv_msgs
