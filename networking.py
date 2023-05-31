@@ -45,9 +45,9 @@ class ClientMiddleware:
         self.req_sock.connect("tcp://"+self.SERVER_IP+":"+self.REQ_PORT)
         msg = str(self.game_id) + " GS"
         self.req_sock.send(msg.encode())
-        current_state = pickle.loads(self.req_sock.recv())
+        self.current_state = pickle.loads(self.req_sock.recv())
         print("initialized")
-        print(current_state)
+        print(self.current_state)
         state_modified = True
         self.req_sock.close()
     
@@ -76,13 +76,13 @@ class ClientMiddleware:
                 print(myStr)
                 self.recv_msgs.append((player_id, myStr))
             elif msg_type == "G":
-                for player in current_state["Players_Info"]:
+                for player in self.current_state["Players_Info"]:
                     if player["ID"] == player_id:
                         player["Position_X"] = int(data[0])
                         player["Position_Y"] = int(data[1])
                         print("new position")
-                        print(current_state)
-                        state_modified = True
+                        print(self.current_state)
+                        self.state_modified = True
 
     def isMine(self, player_id):
         return self.player_id == player_id

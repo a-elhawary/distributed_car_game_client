@@ -82,6 +82,8 @@ class NetworkWoker(QThread):
 
 
 class ActualGame(QWidget):
+    current_state = {}
+
     def __init__(self, net, parent=None):
         QWidget.__init__(self, parent)
         self.net = net
@@ -91,30 +93,66 @@ class ActualGame(QWidget):
         self.label = QLabel(self)
         self.label.setPixmap(QPixmap.fromImage(image))
         layout.addWidget(self.label)
+
         gameLoop = GameLoop(self)
         gameLoop.msg_signal.connect(self.scrollImage)
         gameLoop.start()
-        self.setLayout(layout)
 
+        updateLoop = UpdateLoop(self.net, self)
+        updateLoop.msg_signal.connect(self.updateCar)
+        updateLoop.start()
+
+        self.setLayout(layout)
+        self.setFocus()
+
+    def mousePressEvent(self, event):
+        if QApplication.focusWidget() is not None:
+            QApplication.focusWidget().clearFocus()
+        self.setFocus()
 
     def keyPressEvent(self, e):
-        if e.event_type == "down":
-            if e.name == "w":
-                self.net.move("UP")
-            if e.name == "a":
-                self.net.move("LEFT")
-            if e.name == "d":
-                self.net.move("RIGHT")
+        if e.key() == 87: # w in ascii
+            print("UP")
+            self.net.move("UP")
+        elif e.key() == 65: # a in ascii
+            print("LEFT")
+            self.net.move("LEFT")
+        elif e.key() == 68: # d in ascii
+            print("RIGHT")
+            self.net.move("RIGHT")
+        else:
+            print(e.key())
+
+    def updateCar(self, idx):
+        self.current_state = self.net.getState()
 
     def scrollImage(self):
         offset = 40
         new_im = self.im.copy()
         new_im[:offset][:][:] = self.im[self.im.shape[0]-offset:][:][:]
         new_im[offset:][:][:] = self.im[:self.im.shape[0]-offset][:][:]
+
+        # draw car on top of next rendered image
+
+
         self.im = new_im
+
         image = QImage(self.im.data, self.im.shape[1], self.im.shape[0], QImage.Format_RGB888).rgbSwapped()
         self.label.setPixmap(QPixmap.fromImage(image))
 
+
+class UpdateLoop(QThread):
+    msg_signal = pyqtSignal(int)
+
+    def __init__(self, net, parent=None):
+        QThread.__init__(self, parent)
+        self.net = net
+        self.currSize = 0
+
+    def run(self):
+        while True:
+            if self.net.isStateChanged():
+                self.msg_signal.emit(0)
 
 class GameLoop(QThread):
     msg_signal = pyqtSignal(int)
