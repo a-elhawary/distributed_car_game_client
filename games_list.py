@@ -1,14 +1,15 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
 from PyQt5 import QtCore
 import ready_window
-
-# dummy, TODO: send a request to get json response
+import create_game
+import networking
 
 
 class Game(QWidget):
-    def __init__(self, name, num_players, parent=None):
+    def __init__(self, name, num_players, tracker1_ip, tracker2_ip, parent=None):
         QWidget.__init__(self, parent)
         self.window = parent
+        self.trackers = [tracker1_ip, tracker2_ip]
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         layout = QHBoxLayout()
         self.setStyleSheet(
@@ -25,7 +26,7 @@ class Game(QWidget):
             font-weight:bold;
             """
         )
-        player_count = QLabel(str(num_players) + "/6 players")
+        player_count = QLabel(str(num_players) + " players")
         join = QPushButton("Join")
         join.clicked.connect(self.onJoin)
         join.setStyleSheet(
@@ -50,8 +51,32 @@ class GameList(QWidget):
         self.window = parent
         QWidget.__init__(self, parent)
         layout = QVBoxLayout()
-        games = [{"name": "OsZoz", "num_players": 3},{"name": "Habd", "num_players": 1}]
+        games = networking.ClientMiddleware().list_games()
+        gamesAdded = False
         for game in games:
-            layout.addWidget(Game(game["name"], game["num_players"], self.window))
+            print(game)
+            layout.addWidget(Game(game[1], game[2], game[3], game[4], self.window))
+            gamesAdded = True
+        if not gamesAdded:
+            layout.addWidget(QLabel("No Games Yet! Create One..."))
         layout.addStretch(1);
+        bottomBar = QWidget()
+        bottomBarLayout = QHBoxLayout()
+        bottomBarLayout.addWidget(QLabel("Or start a new Game!"))
+        bottomBarLayout.addStretch(1)
+        createGameBtn = QPushButton("Create Game!")
+        createGameBtn.setStyleSheet(
+            """
+            background-color:#dbcd4b;
+            color:#000;
+            padding:10px;
+            """
+        )
+        createGameBtn.clicked.connect(self.createGame)
+        bottomBarLayout.addWidget(createGameBtn)
+        bottomBar.setLayout(bottomBarLayout)
+        layout.addWidget(bottomBar)
         self.setLayout(layout)
+
+    def createGame(self):
+        self.window.changeScreen(create_game.CreateGameScreen(self.window))

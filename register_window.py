@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
 import games_list
-import register_window
+import login_window
 import networking
 
 
-class LoginWindow(QWidget):
+class RegisterScreen(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
         self.window = parent
@@ -13,18 +13,18 @@ class LoginWindow(QWidget):
         small = QWidget()
         small.setContentsMargins(300,0,300,0)
         small_layout = QVBoxLayout()
-        title = QLabel("Welcome Back! Login to Your Account")
+        title = QLabel("Create a new Account!")
+        self.errorMsg = QLabel("")
+        self.errorMsg.setStyleSheet(
+            """
+            color:#ff0000;
+            """
+        )
         title.setStyleSheet(
             """
             color:#dbcd4b;
             font-size:20px;
             font-weight:bold;
-            """
-        )
-        self.errorMsg = QLabel("")
-        self.errorMsg.setStyleSheet(
-            """
-            color:#ff0000;
             """
         )
         user_name_label = QLabel("Username:")
@@ -41,10 +41,17 @@ class LoginWindow(QWidget):
             padding:10px;
             """
         )
+        confirm_password_label = QLabel("Confirm Password:")
+        self.confirm_password = QLineEdit()
+        self.confirm_password.setStyleSheet(
+            """
+            padding:10px;
+            """
+        )
         button = QWidget()
         buttonLayout = QHBoxLayout()
         buttonLayout.addStretch(1)
-        register = QPushButton("Or Register")
+        register = QPushButton("Or Login")
         register.setStyleSheet(
             """
             color:#dbcd4b;
@@ -52,7 +59,7 @@ class LoginWindow(QWidget):
             """
         )
         register.clicked.connect(self.register)
-        login = QPushButton("Login")
+        login = QPushButton("Register")
         login.setStyleSheet(
             """
             background-color:#dbcd4b;
@@ -70,6 +77,8 @@ class LoginWindow(QWidget):
         small_layout.addWidget(self.user_name)
         small_layout.addWidget(password_label)
         small_layout.addWidget(self.password)
+        small_layout.addWidget(confirm_password_label)
+        small_layout.addWidget(self.confirm_password)
         small_layout.addWidget(button)
         small.setLayout(small_layout)
         layout.addWidget(small)
@@ -77,13 +86,21 @@ class LoginWindow(QWidget):
         self.setLayout(layout)
 
     def register(self):
-        self.window.changeScreen(register_window.RegisterScreen(self.window))
+        self.window.changeScreen(login_window.LoginWindow(self.window))
 
     def onLogin(self):
+        if self.confirm_password.text() != self.password.text():
+            self.errorMsg.setText("Passwords Don't Match!")
+            return
         net = networking.ClientMiddleware()
-        res = net.login(self.user_name.text(), self.password.text())
-        if res == "login success":
-            net.setUserID(self.user_name.text())
+        result = net.register(self.user_name.text(), self.password.text())
+        if result == "user added":
+            net.setUserID()
             self.window.changeScreen(games_list.GameList(self.window))
         else:
-            self.errorMsg.setText(res)
+            self.errorMsg.setText(result)
+
+        
+
+
+

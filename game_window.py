@@ -3,6 +3,7 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import QThread, pyqtSignal
 import time
 import cv2
+import numpy as np
 from networking import ClientMiddleware
 
 
@@ -88,8 +89,13 @@ class ActualGame(QWidget):
         QWidget.__init__(self, parent)
         self.net = net
         layout = QVBoxLayout()
-        self.im = cv2.imread('assets/background.png')
-        image = QImage(self.im.data, self.im.shape[1], self.im.shape[0], QImage.Format_RGB888).rgbSwapped()
+        self.background_im = cv2.imread('assets/background.png')
+        self.cars =[]
+        self.lanes = [80,  190, 320, 450, 580, 680]
+        self.cars.append(cv2.imread('assets/car.png'))
+        print(self.background_im.shape)
+        self.state = [[1, 530]]
+        image = QImage(self.background_im.data, self.background_im.shape[1], self.background_im.shape[0], QImage.Format_RGB888).rgbSwapped()
         self.label = QLabel(self)
         self.label.setPixmap(QPixmap.fromImage(image))
         layout.addWidget(self.label)
@@ -111,15 +117,18 @@ class ActualGame(QWidget):
         self.setFocus()
 
     def keyPressEvent(self, e):
+        print(self.state[0])
         if e.key() == 87: # w in ascii
             print("UP")
             self.net.move("UP")
         elif e.key() == 65: # a in ascii
             print("LEFT")
             self.net.move("LEFT")
+            self.state[0][0] -= 1
         elif e.key() == 68: # d in ascii
             print("RIGHT")
             self.net.move("RIGHT")
+            self.state[0][0] += 1
         else:
             print(e.key())
 
@@ -128,16 +137,21 @@ class ActualGame(QWidget):
 
     def scrollImage(self):
         offset = 40
-        new_im = self.im.copy()
-        new_im[:offset][:][:] = self.im[self.im.shape[0]-offset:][:][:]
-        new_im[offset:][:][:] = self.im[:self.im.shape[0]-offset][:][:]
+        new_im = self.background_im.copy()
+        new_im[:offset][:][:] = self.background_im[self.background_im.shape[0]-offset:][:][:]
+        new_im[offset:][:][:] = self.background_im[:self.background_im.shape[0]-offset][:][:]
 
-        # draw car on top of next rendered image
+        self.background_im = new_im
+        self.updateImage()
 
-
-        self.im = new_im
-
-        image = QImage(self.im.data, self.im.shape[1], self.im.shape[0], QImage.Format_RGB888).rgbSwapped()
+    def updateImage(self):
+        rendered_im = self.background_im.copy()
+        for i in range(len(self.cars)):
+            im = self.cars[i]
+            x, y = self.state[i]
+            x = self.lanes[x]
+            rendered_im[y:y+im.shape[0], x:x+im.shape[1], :] = im
+        image = QImage(rendered_im.data, rendered_im.shape[1], rendered_im.shape[0], QImage.Format_RGB888).rgbSwapped()
         self.label.setPixmap(QPixmap.fromImage(image))
 
 

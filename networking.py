@@ -1,11 +1,16 @@
 import zmq
 from threading import Thread
 import pickle
+import requests
+import json
 
 class ClientMiddleware:
     # Client info
-    game_id = 1
-    player_id = "hawary"
+    game_id = None
+    player_id = None 
+
+    # auth server address
+    AUTH_SERVER = "http://178.79.139.125:5000"
 
     # server addresses
     SERVER_IP = "127.0.0.1"
@@ -25,6 +30,12 @@ class ClientMiddleware:
     # recieved chat buffer
     recv_msgs = []
 
+    # Make Singleton
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(ClientMiddleware, cls).__new__(cls)
+        return cls.instance
+
     def __init__(self):
         context = zmq.Context()
         self.sub_sock = context.socket(zmq.SUB)
@@ -33,6 +44,26 @@ class ClientMiddleware:
         self.push_sock.connect("tcp://"+self.SERVER_IP+":"+self.PUSH_PORT)
         self.req_sock = context.socket(zmq.REQ)
         self.sub_sock.setsockopt(zmq.SUBSCRIBE, str(self.game_id).encode())
+
+    # Auth Server Functions
+    def login(self, user_name, password):
+        res = requests.post(self.AUTH_SERVER + "/login", data={"user_name" : user_name, "password": password})
+        return res.text
+
+    def register(self, user_name, password):
+        res = requests.post(self.AUTH_SERVER + "/register", data={"user_name" : user_name, "password": password})
+        return res.text
+
+    def list_games(self):
+        res = requests.get(self.AUTH_SERVER + "/list_games")
+        return json.loads(res.text)
+
+    def create_game(self, game_name, num_players):
+        res = requests.post(self.AUTH_SERVER + "/create_game", data={"game_name":game_name, "num_players": num_players})
+        return res
+        
+
+    # Tracker Functions
     
     def start(self):
         print("starting server...")
@@ -83,6 +114,13 @@ class ClientMiddleware:
                         print("new position")
                         print(self.current_state)
                         self.state_modified = True
+
+    # Setters and Getters
+    def setUserID(self, player_id):
+        self.player_id = player_id
+
+    def setGameID(self, game_id):
+        self.game_id = game_id
 
     def isMine(self, player_id):
         return self.player_id == player_id
