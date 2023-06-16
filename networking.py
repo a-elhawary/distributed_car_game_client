@@ -1,8 +1,9 @@
 import zmq
-from threading import Thread
+from threading import Thread 
 import pickle
 import requests
 import json
+
 
 class ClientMiddleware:
     # Client info
@@ -82,18 +83,20 @@ class ClientMiddleware:
     
     def getStateUpdate(self):
         while True:
-            print("Waiting for State Update...")
             data = self.sub_sock.recv().decode().split()
-            print("State Update Notified from Server")
             game_id = data[0]
             player_id = data[1]
+            if(len(data) > 2):
+                msg_type = data[2]
+                data = data[3:]
             if player_id == "START":
+                self.current_state["Status"] = "Ongoing"
                 self.start_game = True
                 self.state_modified = True
                 continue
-            msg_type = data[2]
-            if(len(data) > 2):
-                data = data[3:]
+            elif player_id == "STOP":
+                self.current_state["Status"] = "Done"
+                self.state_modified = True
             if msg_type == "C":
                 myStr = ""
                 for word in data:
@@ -113,7 +116,6 @@ class ClientMiddleware:
                         player["Ready"] = 1 
                         self.state_modified = True
             elif msg_type == "J":
-                print("Someone Joined The Game...")
                 self.current_state["Players_Info"].append({"ID": player_id, "Position_X": data[0], "Position_Y": data[1], "Ready": 0})
                 self.state_modified = True
 
@@ -137,6 +139,8 @@ class ClientMiddleware:
 
         # getting current game state
         self.getNewState()
+        if self.current_state["Status"] != "Starting":
+            self.start_game = True
 
         # if user is not in state then send join message
         found = False

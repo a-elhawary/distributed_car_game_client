@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QScrollArea
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 class Message(QWidget):
     def __init__(self, msg, isMine, parent=None):
@@ -23,12 +23,19 @@ class LiveChat(QWidget):
     def __init__(self,net, parent=None):
         QWidget.__init__(self, parent)
         self.net = net
+        self.isRunning = True
         layout = QVBoxLayout()
+        scroll = QScrollArea()
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidgetResizable(True)
         messages = QWidget()
+        scroll.setWidget(messages)
         self.messagesLayout = QVBoxLayout()
+        self.messagesLayout.addStretch(1)
         messages.setLayout(self.messagesLayout)
-        layout.addWidget(messages)
-        layout.addStretch(1)
+        layout.addWidget(scroll)
+        layout.setStretch(0,1)
 
         bottomBar = QWidget()
         bottomLayout = QHBoxLayout()
@@ -63,11 +70,12 @@ class NetworkWoker(QThread):
 
     def __init__(self, net, parent=None):
         QThread.__init__(self, parent)
+        self.parent = parent
         self.net = net
         self.current = 0
 
     def run(self):
-        while True:
+        while self.parent.isRunning:
             myLen = len(self.net.getMessages())
             if myLen != self.current:
                 self.current = myLen

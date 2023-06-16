@@ -6,6 +6,7 @@ import login_window
 class MainWindow(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
+        self.screen = None
         self.setStyleSheet(
             """
             background-color:#202020;
@@ -20,6 +21,7 @@ class MainWindow(QWidget):
         self.show()
 
     def changeScreen(self, screen):
+        self.screen = screen
         for i in reversed(range(self.layout.count())):
             self.layout.itemAt(i).widget().setParent(None)
         self.layout.addWidget(screen)

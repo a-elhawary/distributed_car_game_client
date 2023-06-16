@@ -29,14 +29,12 @@ class Game(QWidget):
         )
         player_count = QLabel(str(num_players) + " players")
         join = QPushButton("Join")
-        join.clicked.connect(self.onJoin)
         join.setStyleSheet(
             """
             background-color:#dbcd4b;
-            color:#000;
-            padding:20px;
             """
         )
+        join.clicked.connect(self.onJoin)
         layout.addWidget(title)
         layout.addWidget(player_count)
         layout.addStretch(1)
@@ -51,35 +49,49 @@ class Game(QWidget):
 
 class GameList(QWidget):
     def __init__(self, parent=None):
-        self.window = parent
         QWidget.__init__(self, parent)
+        self.window = parent
+        self.setStyleSheet(
+            """
+            QPushButton{
+                background-color:#dbcd4b;
+                color:#000;
+                padding:20px;
+            }
+            """
+        )
         layout = QVBoxLayout()
-        games = networking.ClientMiddleware().list_games()
-        gamesAdded = False
-        for game in games:
-            print(game)
-            layout.addWidget(Game(game[0], game[1], game[2], game[3], game[4], self.window))
-            gamesAdded = True
-        if not gamesAdded:
-            layout.addWidget(QLabel("No Games Yet! Create One..."))
+        games_widget = QWidget()
+        self.games_layout = QVBoxLayout()
+        games_widget.setLayout(self.games_layout)
+        layout.addWidget(games_widget)
+        self.refresh()
         layout.addStretch(1);
         bottomBar = QWidget()
         bottomBarLayout = QHBoxLayout()
         bottomBarLayout.addWidget(QLabel("Or start a new Game!"))
         bottomBarLayout.addStretch(1)
         createGameBtn = QPushButton("Create Game!")
-        createGameBtn.setStyleSheet(
-            """
-            background-color:#dbcd4b;
-            color:#000;
-            padding:10px;
-            """
-        )
         createGameBtn.clicked.connect(self.createGame)
+        refreshBtn = QPushButton("Refresh")
+        refreshBtn.clicked.connect(self.refresh)
         bottomBarLayout.addWidget(createGameBtn)
+        bottomBarLayout.addWidget(refreshBtn)
         bottomBar.setLayout(bottomBarLayout)
         layout.addWidget(bottomBar)
         self.setLayout(layout)
+
+    def refresh(self):
+        games = networking.ClientMiddleware().list_games()
+        for i in reversed(range(self.games_layout.count())):
+            self.games_layout.itemAt(i).widget().setParent(None)
+        gamesAdded = False
+        for game in games:
+            self.games_layout.addWidget(Game(game[0], game[1], game[2], game[3], game[4], self.window))
+            gamesAdded = True
+        if not gamesAdded:
+            self.games_layout.addWidget(QLabel("No Games Yet! Create One..."))
+
 
     def createGame(self):
         self.window.changeScreen(create_game.CreateGameScreen(self.window))

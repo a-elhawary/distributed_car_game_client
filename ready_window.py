@@ -85,16 +85,14 @@ class ReadyScreen(QWidget):
         self.setLayout(window_layout)
 
     def redraw(self, idx):
-        print("REDRAWING")
         for i in reversed(range(self.layout.count())):
-            print("REMOVED WIDGET")
             self.layout.itemAt(i).widget().setParent(None)
         for p in self.players:
-            print("ADDED WIDGET")
             player = Player(p["ID"], p["Ready"], self)
             self.layout.addWidget(player)
 
     def start_game(self):
+        self.isRunning = False
         self.window.changeScreen(game_window.GameWindow(self.chat, self.net, self.window))
 
 
@@ -107,10 +105,8 @@ class NetworkWorker(QThread):
         self.screen = parent
 
     def run(self):
-        print("Checking for changes...")
         while self.screen.isRunning:
             if self.screen.net.isStateChanged():
-                print("Something Changed!")
                 if self.screen.net.isStartGame():
                     self.change_window_msg.emit(0)
                 else:
