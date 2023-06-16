@@ -1,0 +1,2 @@
+- If Tracker 1 is down, join game requests don't go to traker_2 by default.
+- Refresh games in games_list screen.

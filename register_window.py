@@ -95,7 +95,7 @@ class RegisterScreen(QWidget):
         net = networking.ClientMiddleware()
         result = net.register(self.user_name.text(), self.password.text())
         if result == "user added":
-            net.setUserID()
+            net.setUserID(self.user_name.text())
             self.window.changeScreen(games_list.GameList(self.window))
         else:
             self.errorMsg.setText(result)

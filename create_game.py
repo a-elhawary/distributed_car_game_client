@@ -62,6 +62,6 @@ class CreateGameScreen(QWidget):
     def onCreateGame(self):
         net = networking.ClientMiddleware()
         res = net.create_game(self.game_name.text(), self.players_num.text())
-        net.setGameID(res)
-        self.window.changeScreen(ready_window.ReadyScreen(self.window))
+        net.joinGame(res[0], res[1])
+        self.window.changeScreen(ready_window.ReadyScreen(net, self.window))
 

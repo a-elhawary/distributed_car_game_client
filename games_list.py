@@ -6,10 +6,11 @@ import networking
 
 
 class Game(QWidget):
-    def __init__(self, name, num_players, tracker1_ip, tracker2_ip, parent=None):
+    def __init__(self, game_id, name, num_players, tracker1_ip, tracker2_ip, parent=None):
         QWidget.__init__(self, parent)
         self.window = parent
         self.trackers = [tracker1_ip, tracker2_ip]
+        self.game_id = game_id
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         layout = QHBoxLayout()
         self.setStyleSheet(
@@ -43,7 +44,9 @@ class Game(QWidget):
         self.setLayout(layout)
 
     def onJoin(self):
-        self.window.changeScreen(ready_window.ReadyScreen(self.window))
+        net = networking.ClientMiddleware()
+        net.joinGame(self.game_id, self.trackers)
+        self.window.changeScreen(ready_window.ReadyScreen(net, self.window))
 
 
 class GameList(QWidget):
@@ -55,7 +58,7 @@ class GameList(QWidget):
         gamesAdded = False
         for game in games:
             print(game)
-            layout.addWidget(Game(game[1], game[2], game[3], game[4], self.window))
+            layout.addWidget(Game(game[0], game[1], game[2], game[3], game[4], self.window))
             gamesAdded = True
         if not gamesAdded:
             layout.addWidget(QLabel("No Games Yet! Create One..."))
