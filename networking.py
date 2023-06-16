@@ -26,6 +26,7 @@ class ClientMiddleware:
     # state data
     current_state = {}
     state_modified = False
+    start_game = False
 
     # recieved chat buffer
     recv_msgs = []
@@ -86,6 +87,10 @@ class ClientMiddleware:
             print("State Update Notified from Server")
             game_id = data[0]
             player_id = data[1]
+            if player_id == "START":
+                self.start_game = True
+                self.state_modified = True
+                continue
             msg_type = data[2]
             if(len(data) > 2):
                 data = data[3:]
@@ -155,6 +160,10 @@ class ClientMiddleware:
 
     def isStateChanged(self):
         return self.state_modified
+    
+    def isStartGame(self):
+        self.state_modified = False
+        return self.start_game
 
     def getState(self):
         self.state_modified = False

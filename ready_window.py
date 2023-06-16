@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLi
 from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, pyqtSignal
 import game_window
+import live_chat
 
 class Player(QWidget):
     def __init__(self, name, ready, parent=None):
@@ -70,12 +71,20 @@ class ReadyScreen(QWidget):
         self.players = []
         self.isRunning = True
         worker = NetworkWorker(self)
-        worker.msg.connect(self.newPlayer)
+        worker.redraw_msg.connect(self.redraw)
+        worker.change_window_msg.connect(self.start_game)
         worker.start()
+        window_layout = QHBoxLayout()
+        left = QWidget()
+        self.chat = live_chat.LiveChat(self.net)
         self.layout = QHBoxLayout()
-        self.setLayout(self.layout)
+        left.setLayout(self.layout)
+        window_layout.addWidget(left)
+        window_layout.addStretch(1)
+        window_layout.addWidget(self.chat)
+        self.setLayout(window_layout)
 
-    def newPlayer(self, idx):
+    def redraw(self, idx):
         print("REDRAWING")
         for i in reversed(range(self.layout.count())):
             print("REMOVED WIDGET")
@@ -85,9 +94,13 @@ class ReadyScreen(QWidget):
             player = Player(p["ID"], p["Ready"], self)
             self.layout.addWidget(player)
 
+    def start_game(self):
+        self.window.changeScreen(game_window.GameWindow(self.chat, self.net, self.window))
+
 
 class NetworkWorker(QThread):
-    msg = pyqtSignal(int)
+    redraw_msg = pyqtSignal(int)
+    change_window_msg = pyqtSignal(int)
 
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -98,6 +111,9 @@ class NetworkWorker(QThread):
         while self.screen.isRunning:
             if self.screen.net.isStateChanged():
                 print("Something Changed!")
-                newState = self.screen.net.getState()
-                self.screen.players = newState["Players_Info"]
-                self.msg.emit(0)
+                if self.screen.net.isStartGame():
+                    self.change_window_msg.emit(0)
+                else:
+                    newState = self.screen.net.getState()
+                    self.screen.players = newState["Players_Info"]
+                    self.redraw_msg.emit(0)
